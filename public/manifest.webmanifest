@@ -1,0 +1,37 @@
+{
+  "name": "ApexBee Delivery Partner Portal",
+  "short_name": "ApexBee Partner",
+  "description": "Official ApexBee Delivery Partner Portal. Track assignments, monitor wallet earnings, check in/out, log attendance breaks, verify OTP, and navigate active orders.",
+  "start_url": "/",
+  "id": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0F172A",
+  "theme_color": "#0F172A",
+  "categories": [
+    "business",
+    "logistics",
+    "utilities"
+  ],
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/favicon.svg",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/favicon.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

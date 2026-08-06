@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
+  <rect width="512" height="512" rx="128" fill="#0F172A"/>
+  <circle cx="256" cy="256" r="200" fill="#1E293B" stroke="#6366F1" stroke-width="12"/>
+  <!-- Delivery Shield & Arrow Icon -->
+  <path d="M256 100 L370 160 V260 C370 340 256 410 256 410 C256 410 142 340 142 260 V160 Z" fill="#4F46E5" opacity="0.9"/>
+  <path d="M256 170 L300 240 H270 V320 H242 V240 H212 Z" fill="#FFFFFF"/>
+</svg>
