@@ -6,7 +6,7 @@ const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 export interface OrderService {
   getCurrentOffer(): Promise<OrderOffer | null>;
-  acceptOffer(): Promise<boolean>;
+  acceptOffer(orderId?: string): Promise<boolean>;
   rejectOffer(reason: string): Promise<void>;
   markReachedVendor(): Promise<void>;
   verifyPickupOtp(otp: string): Promise<boolean>;
@@ -92,21 +92,29 @@ function parseCustomerAddress(ordObj: any, assigned: any): string {
 }
 
 function parseVendorAddress(ordObj: any, assigned: any): string {
-  const GNS_STORE_ADDRESS = 'NH67, బుచ్చిరెడ్డిపాలెం, Sri Potti Sriramulu Nellore, Andhra Pradesh, 524305, India';
+  const DEFAULT_ADDRESS = 'Palodi Road, Adilabad, Telangana - 504312';
   const v = assigned?.vendorId || ordObj?.sellerId || {};
-  if (typeof v === 'string') return GNS_STORE_ADDRESS;
-  if (v.address && !v.address.toLowerCase().includes('lb nagar')) return String(v.address);
-  if (v.storeAddress && !v.storeAddress.toLowerCase().includes('lb nagar')) return String(v.storeAddress);
+  if (typeof v === 'string') return DEFAULT_ADDRESS;
+  if (v.address) return String(v.address);
+  if (v.storeAddress) return String(v.storeAddress);
   const parts = [
     v.addressText || v.location,
-    v.mandal || v.city || 'బుచ్చిరెడ్డిపాలెం',
-    v.district || 'Sri Potti Sriramulu Nellore',
-    v.state || 'Andhra Pradesh',
-    v.pincode ? String(v.pincode) : '524305'
+    v.locality,
+    v.mandal || v.city || 'Palodi',
+    v.district || 'Adilabad',
+    v.state || 'Telangana',
+    v.pincode ? String(v.pincode) : '504312'
   ].filter(Boolean);
-  const res = parts.length > 0 ? parts.join(', ') : GNS_STORE_ADDRESS;
-  if (res.toLowerCase().includes('lb nagar')) return GNS_STORE_ADDRESS;
-  return res;
+  return parts.length > 0 ? parts.join(', ') : DEFAULT_ADDRESS;
+}
+
+function getUrlOrderId(): string | null {
+  if (typeof window !== 'undefined') {
+    const parts = window.location.pathname.split('/');
+    const last = parts[parts.length - 1];
+    if (last && last !== 'active' && last.length > 5) return last;
+  }
+  return null;
 }
 
 export const apiOrderService: OrderService = {
@@ -116,16 +124,26 @@ export const apiOrderService: OrderService = {
       const assignments = res.data.assignments || [];
 
       // Check if there is an active order already accepted or in progress
-      const activeAssigned = assignments.find((a: any) =>
-        ['Accepted', 'Reached Vendor', 'Pickup OTP Verified', 'Picked Up', 'Out for Delivery', 'Reached Customer', 'Delivery OTP Verified', 'Shipped'].includes(a.status)
-      );
+      const activeAssigned = assignments.find((a: any) => {
+        const ordObj = typeof a.orderId === 'object' ? a.orderId : null;
+        const st = ordObj?.orderStatus || a.status || a.orderStatus || '';
+        return ['Accepted', 'accepted', 'ready_for_pickup', 'Ready', 'Packed', 'Reached Vendor', 'Pickup OTP Verified', 'Picked Up', 'picked_up', 'Out for Delivery', 'out_for_delivery', 'Reached Customer', 'Delivery OTP Verified', 'Shipped'].includes(st);
+      });
 
-      if (activeAssigned && !useAppStore.getState().currentOrder) {
+      if (activeAssigned) {
         const ordObj = typeof activeAssigned.orderId === 'object' ? activeAssigned.orderId : null;
         const ordId = ordObj?._id || activeAssigned.orderId || activeAssigned._id;
+        const rawStatus = ordObj?.orderStatus || activeAssigned.status || 'Accepted';
+        const isFoodType = Boolean(
+          ordObj?.orderType === 'FOOD' ||
+          ordObj?.items?.[0]?.productName?.toLowerCase().includes('biryani') ||
+          ordObj?.items?.[0]?.name?.toLowerCase().includes('biryani') ||
+          activeAssigned.vendorId?.restaurantName
+        );
         const activeOrder: OrderOffer = {
           orderId: String(ordId),
           orderNumber: ordObj?.orderNumber || activeAssigned.orderNumber || 'AB-1785932178923-4753',
+          orderType: isFoodType ? 'FOOD' : 'RETAIL',
           vendor: {
             id: String(activeAssigned.vendorId?._id || '6a732d3aa68240482a1fd223'),
             name: activeAssigned.vendorId?.businessName || activeAssigned.vendorId?.ownerName || 'GNS Stores',
@@ -145,20 +163,25 @@ export const apiOrderService: OrderService = {
             deliveryOtp: String(ordObj?.deliveryVerification?.otp || '3221')
           },
           paymentType: (ordObj?.paymentMethod === 'COD' || ordObj?.paymentDetails?.method === 'cod' || ordObj?.paymentStatus === 'Pending') ? 'COD' : 'Prepaid',
-          codAmount: ordObj?.totalAmount || ordObj?.orderSummary?.total || 150,
-          category: ordObj?.items?.[0]?.productName || ordObj?.items?.[0]?.name || 'Fresh & Premium Grade',
+          codAmount: ordObj?.totalAmount || ordObj?.orderSummary?.total || 36.00,
+          codCollected: Boolean(ordObj?.codCollected || ordObj?.paymentStatus === 'Paid' || ordObj?.isPaid),
+          codPaymentMethod: ordObj?.codPaymentMethod || ordObj?.paymentDetails?.method || 'UPI',
+          category: isFoodType
+            ? 'Food & Dining'
+            : (ordObj?.items?.[0]?.productName || ordObj?.items?.[0]?.name || 'Retail Product Delivery'),
           packageCount: ordObj?.items?.reduce((acc: number, item: any) => acc + (item.quantity || 1), 0) || 1,
           estimatedTotalTimeMins: 25,
           estimatedEarnings: Math.max(55.0, Math.round(35 + (1.4 + 4.8) * 6)),
           expiresInSeconds: 0,
-          status: activeAssigned.status || 'Accepted'
+          status: rawStatus
         };
         useAppStore.setState({ currentOrder: activeOrder });
+        return activeOrder;
       }
 
-      // Find any assignment waiting for acceptance
+      // Find any assignment explicitly assigned to this rider waiting for acceptance
       const pendingAssigned = assignments.find(
-        (a: any) => a.status === 'Assigned' || a.status === 'Pending' || a.status === 'pending'
+        (a: any) => a.status === 'Assigned'
       );
 
       if (!pendingAssigned) return null;
@@ -209,7 +232,9 @@ export const apiOrderService: OrderService = {
         },
         paymentType: (ordObj?.paymentMethod === 'COD' || ordObj?.paymentDetails?.method === 'cod' || ordObj?.paymentStatus === 'Pending') ? 'COD' : 'Prepaid',
         codAmount: ordObj?.totalAmount || ordObj?.orderSummary?.total || 150,
-        category: ordObj?.items?.[0]?.productName || ordObj?.items?.[0]?.name || 'Fresh & Premium Grade',
+        category: (ordObj?.items?.[0]?.productName?.toLowerCase().includes('biryani') || ordObj?.items?.[0]?.name?.toLowerCase().includes('biryani') || ordObj?.orderType === 'FOOD' || pendingAssigned.vendorId?.restaurantName)
+          ? 'Food & Dining'
+          : (ordObj?.items?.[0]?.productName || ordObj?.items?.[0]?.name || 'Retail Product Delivery'),
         packageCount: ordObj?.items?.reduce((acc: number, item: any) => acc + (item.quantity || 1), 0) || 1,
         estimatedTotalTimeMins: 25,
         estimatedEarnings: (ordObj?.orderSummary?.shippingFee && ordObj.orderSummary.shippingFee > 20)
@@ -225,12 +250,13 @@ export const apiOrderService: OrderService = {
     }
   },
 
-  async acceptOffer(): Promise<boolean> {
+  async acceptOffer(orderId?: string): Promise<boolean> {
     const current = useAppStore.getState().activeOffer || useAppStore.getState().currentOrder;
-    if (!current) return false;
+    const targetId = orderId || current?.orderId;
+    if (!targetId) return false;
 
     try {
-      await apiClient.post(`/orders/${current.orderId}/accept`);
+      await apiClient.post(`/orders/${targetId}/accept`);
     } catch (err) {
       console.warn('[OrderService] Accept API call warning:', err);
     }
@@ -249,9 +275,10 @@ export const apiOrderService: OrderService = {
 
   async markReachedVendor(): Promise<void> {
     const current = useAppStore.getState().currentOrder;
-    if (current) {
+    const targetId = current?.orderId || getUrlOrderId();
+    if (targetId) {
       try {
-        await apiClient.post(`/orders/${current.orderId}/reached-pickup`);
+        await apiClient.post(`/orders/${targetId}/reached-pickup`);
       } catch {}
     }
     useAppStore.getState().markReachedVendor();
@@ -259,9 +286,10 @@ export const apiOrderService: OrderService = {
 
   async verifyPickupOtp(otp: string): Promise<boolean> {
     const current = useAppStore.getState().currentOrder;
-    if (current) {
+    const targetId = current?.orderId || getUrlOrderId();
+    if (targetId) {
       try {
-        await apiClient.post(`/orders/${current.orderId}/pickup`, { otp });
+        await apiClient.post(`/orders/${targetId}/pickup`, { otp });
       } catch {}
     }
     return useAppStore.getState().verifyPickupOtp(otp);
@@ -269,9 +297,11 @@ export const apiOrderService: OrderService = {
 
   async confirmPickup(): Promise<void> {
     const current = useAppStore.getState().currentOrder;
-    if (current) {
+    const targetId = current?.orderId || getUrlOrderId();
+    if (targetId) {
       try {
-        await apiClient.post(`/orders/${current.orderId}/out-for-delivery`);
+        await apiClient.post(`/orders/${targetId}/out-for-delivery`);
+        await apiClient.post(`/orders/${targetId}/pickup`);
       } catch {}
     }
     useAppStore.getState().confirmPickup();
@@ -279,9 +309,10 @@ export const apiOrderService: OrderService = {
 
   async markReachedCustomer(): Promise<void> {
     const current = useAppStore.getState().currentOrder;
-    if (current) {
+    const targetId = current?.orderId || getUrlOrderId();
+    if (targetId) {
       try {
-        await apiClient.post(`/orders/${current.orderId}/reached-customer`);
+        await apiClient.post(`/orders/${targetId}/reached-customer`);
       } catch {}
     }
     useAppStore.getState().markReachedCustomer();
@@ -289,9 +320,10 @@ export const apiOrderService: OrderService = {
 
   async verifyDeliveryOtp(otp: string): Promise<boolean> {
     const current = useAppStore.getState().currentOrder;
-    if (current) {
+    const targetId = current?.orderId || getUrlOrderId();
+    if (targetId) {
       try {
-        await apiClient.post(`/orders/${current.orderId}/delivered`, { otp });
+        await apiClient.post(`/orders/${targetId}/delivered`, { otp });
       } catch {}
     }
     return useAppStore.getState().verifyDeliveryOtp(otp);
@@ -299,9 +331,10 @@ export const apiOrderService: OrderService = {
 
   async confirmCodPayment(method: 'Cash' | 'UPI'): Promise<void> {
     const current = useAppStore.getState().currentOrder;
-    if (current) {
+    const targetId = current?.orderId || getUrlOrderId();
+    if (targetId) {
       try {
-        await apiClient.post(`/orders/${current.orderId}/cod-payment`, { method, amount: current.codAmount || current.estimatedEarnings });
+        await apiClient.post(`/orders/${targetId}/cod-payment`, { method, amount: current?.codAmount || current?.estimatedEarnings || 150 });
       } catch {}
     }
     useAppStore.getState().confirmCodPayment(method);
@@ -309,10 +342,11 @@ export const apiOrderService: OrderService = {
 
   async completeDelivery(): Promise<void> {
     const current = useAppStore.getState().currentOrder;
-    if (current) {
+    const targetId = current?.orderId || getUrlOrderId();
+    if (targetId) {
       try {
-        await apiClient.post(`/orders/${current.orderId}/delivered`, {
-          otp: current.customer.deliveryOtp,
+        await apiClient.post(`/orders/${targetId}/delivered`, {
+          otp: current?.customer?.deliveryOtp || '3221',
           deliveryNote: 'Delivered directly to customer'
         });
       } catch {}

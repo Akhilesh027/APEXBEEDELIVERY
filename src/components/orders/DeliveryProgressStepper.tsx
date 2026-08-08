@@ -3,10 +3,16 @@ import type { DisplayDeliveryStatus } from '../../types/order';
 
 interface DeliveryProgressStepperProps {
   currentStatus: DisplayDeliveryStatus;
+  isFoodOrder?: boolean;
 }
 
-export const DeliveryProgressStepper: React.FC<DeliveryProgressStepperProps> = ({ currentStatus }) => {
-  const steps: Array<{ key: DisplayDeliveryStatus[]; label: string }> = [
+export const DeliveryProgressStepper: React.FC<DeliveryProgressStepperProps> = ({ currentStatus, isFoodOrder }) => {
+  const steps: Array<{ key: DisplayDeliveryStatus[]; label: string }> = isFoodOrder ? [
+    { key: ['Accepted', 'ready_for_pickup', 'Ready', 'Packed'], label: 'Food Ready' },
+    { key: ['Reached Vendor', 'Pickup OTP Verified', 'Picked Up'], label: 'Picked Up' },
+    { key: ['Out for Delivery', 'Reached Customer', 'Delivery OTP Verified'], label: 'On Way' },
+    { key: ['Delivered', 'Completed'], label: 'Delivered' }
+  ] : [
     { key: ['Accepted'], label: 'Accepted' },
     { key: ['Reached Vendor', 'Pickup OTP Verified'], label: 'Vendor' },
     { key: ['Picked Up'], label: 'Picked Up' },
@@ -16,10 +22,16 @@ export const DeliveryProgressStepper: React.FC<DeliveryProgressStepperProps> = (
 
   const getStepState = (index: number) => {
     let activeIndex = 0;
-    if (['Reached Vendor', 'Pickup OTP Verified'].includes(currentStatus)) activeIndex = 1;
-    if (currentStatus === 'Picked Up') activeIndex = 2;
-    if (['Reached Customer', 'Delivery OTP Verified'].includes(currentStatus)) activeIndex = 3;
-    if (currentStatus === 'Delivered') activeIndex = 4;
+    if (isFoodOrder) {
+      if (['Reached Vendor', 'Pickup OTP Verified', 'Picked Up', 'picked_up'].includes(currentStatus)) activeIndex = 1;
+      if (['Out for Delivery', 'out_for_delivery', 'Reached Customer', 'Delivery OTP Verified', 'Shipped'].includes(currentStatus)) activeIndex = 2;
+      if (['Delivered', 'Completed', 'delivered'].includes(currentStatus)) activeIndex = 3;
+    } else {
+      if (['Reached Vendor', 'Pickup OTP Verified'].includes(currentStatus)) activeIndex = 1;
+      if (['Picked Up', 'picked_up'].includes(currentStatus)) activeIndex = 2;
+      if (['Reached Customer', 'Delivery OTP Verified', 'Out for Delivery', 'out_for_delivery'].includes(currentStatus)) activeIndex = 3;
+      if (['Delivered', 'Completed', 'delivered'].includes(currentStatus)) activeIndex = 4;
+    }
 
     if (index < activeIndex) return 'completed';
     if (index === activeIndex) return 'current';
