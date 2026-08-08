@@ -9,7 +9,17 @@ export type DisplayDeliveryStatus =
   | 'Delivered'
   | 'Completed'
   | 'Failed'
-  | 'Rejected';
+  | 'Rejected'
+  | 'ready_for_pickup'
+  | 'Ready'
+  | 'Packed'
+  | 'Out for Delivery'
+  | 'out_for_delivery'
+  | 'picked_up'
+  | 'delivered'
+  | 'Pending'
+  | 'pending'
+  | 'unassigned';
 
 export interface OrderItem {
   id: string;
@@ -42,6 +52,7 @@ export interface CustomerInfo {
 export interface OrderOffer {
   orderId: string;
   orderNumber: string;
+  orderType?: 'FOOD' | 'RETAIL' | string;
   vendor: VendorInfo;
   customer: CustomerInfo;
   paymentType: 'Prepaid' | 'COD';

@@ -2,7 +2,6 @@ import React, { useEffect, useState } from 'react';
 import { useAppStore } from '../../store/useAppStore';
 import { partnerService } from '../../services/partnerService';
 import { apiClient } from '../../services/apiClient';
-import { orderService } from '../../services/orderService';
 import { PageHeader } from '../../components/common/PageHeader';
 import { MetricCard } from '../../components/common/MetricCard';
 import { ShiftCard } from '../../components/dashboard/ShiftCard';

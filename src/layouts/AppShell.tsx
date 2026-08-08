@@ -47,11 +47,12 @@ export const AppShell: React.FC = () => {
     };
   }, []);
 
+  const statusStr = currentOrder?.status as string | undefined;
   const isDeliveryActive = !!currentOrder &&
-    currentOrder.status !== 'Delivered' &&
-    currentOrder.status !== 'Pending' &&
-    currentOrder.status !== 'pending' &&
-    currentOrder.status !== 'unassigned';
+    statusStr !== 'Delivered' &&
+    statusStr !== 'Pending' &&
+    statusStr !== 'pending' &&
+    statusStr !== 'unassigned';
 
   return (
     <div className="min-h-screen flex bg-[#F7F7F5] text-[#171717] font-sans antialiased">

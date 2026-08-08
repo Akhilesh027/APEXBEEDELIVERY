@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAppStore } from '../../store/useAppStore';
+import type { OrderOffer } from '../../types/order';
 import { orderService } from '../../services/orderService';
 import { DeliveryProgressStepper } from '../../components/orders/DeliveryProgressStepper';
 import { OrderStatusBadge } from '../../components/orders/OrderStatusBadge';
@@ -8,7 +9,7 @@ import { NavigationAction } from '../../components/orders/NavigationAction';
 import { PrimaryDeliveryAction } from '../../components/orders/PrimaryDeliveryAction';
 import { OtpInput } from '../../components/common/OtpInput';
 import { CodPaymentScannerModal } from '../../components/orders/CodPaymentScannerModal';
-import { MapPin, ShieldCheck, CheckCircle2, QrCode, Banknote, Flame, UtensilsCrossed, Clock } from 'lucide-react';
+import { ShieldCheck, CheckCircle2, QrCode, Banknote, Flame, UtensilsCrossed } from 'lucide-react';
 import { useNavigate } from '../../app/simpleRouter';
 
 export const ActiveDeliveryPage: React.FC = () => {
@@ -33,7 +34,7 @@ export const ActiveDeliveryPage: React.FC = () => {
   const pathParts = typeof window !== 'undefined' ? window.location.pathname.split('/') : [];
   const urlOrderId = pathParts[pathParts.length - 1];
 
-  const currentOrderObj = currentOrder || {
+  const currentOrderObj: OrderOffer = currentOrder || {
     orderId: urlOrderId || '6a758d8f261aa351a95c4ca4',
     orderNumber: `AB-${urlOrderId ? urlOrderId.slice(-8).toUpperCase() : 'LIVE-TASK'}`,
     vendor: {
