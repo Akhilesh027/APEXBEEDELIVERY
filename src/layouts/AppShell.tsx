@@ -2,9 +2,7 @@ import React, { useEffect } from 'react';
 import { Outlet, useNavigate } from '../app/simpleRouter';
 import { DesktopSidebar } from './DesktopSidebar';
 import { MobileBottomNavigation } from './MobileBottomNavigation';
-import { OrderOfferSheet } from '../components/orders/OrderOfferSheet';
 import { useAppStore } from '../store/useAppStore';
-import { orderService } from '../services/orderService';
 import { useLiveLocation } from '../hooks/useLiveLocation';
 import { ArrowRight, Navigation } from 'lucide-react';
 
@@ -26,11 +24,10 @@ export const AppShell: React.FC = () => {
       if (currentActive || currentPendingOffer) return;
 
       try {
-        const offer = await orderService.getCurrentOffer();
         if (isMounted) {
           useAppStore.setState({
-            activeOffer: offer,
-            offerCountdown: offer ? offer.expiresInSeconds || 30 : 0
+            activeOffer: null,
+            offerCountdown: 0
           });
         }
       } catch (err) {
@@ -105,9 +102,6 @@ export const AppShell: React.FC = () => {
 
         {/* Mobile Bottom Navigation */}
         <MobileBottomNavigation />
-
-        {/* Global Order Offer Notification Sheet */}
-        <OrderOfferSheet />
       </div>
     </div>
   );

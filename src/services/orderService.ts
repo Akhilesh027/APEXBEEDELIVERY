@@ -117,6 +117,28 @@ function getUrlOrderId(): string | null {
   return null;
 }
 
+export function extractShippingFee(ordObj: any, assignment?: any): number {
+  const fee =
+    ordObj?.orderSummary?.shippingFee ??
+    ordObj?.shippingFee ??
+    ordObj?.deliveryFee ??
+    ordObj?.deliveryCharge ??
+    ordObj?.shippingCharges ??
+    assignment?.shippingFee ??
+    assignment?.deliveryFee ??
+    assignment?.orderSummary?.shippingFee ??
+    assignment?.orderId?.orderSummary?.shippingFee ??
+    assignment?.orderId?.shippingFee;
+
+  if (typeof fee === 'number' && !isNaN(fee) && fee >= 0) {
+    return fee;
+  }
+  if (typeof fee === 'string' && !isNaN(parseFloat(fee))) {
+    return parseFloat(fee);
+  }
+  return 0;
+}
+
 export const apiOrderService: OrderService = {
   async getCurrentOffer(): Promise<OrderOffer | null> {
     try {
@@ -140,6 +162,23 @@ export const apiOrderService: OrderService = {
           ordObj?.items?.[0]?.name?.toLowerCase().includes('biryani') ||
           activeAssigned.vendorId?.restaurantName
         );
+
+        const localCurrentOrder = useAppStore.getState().currentOrder;
+        const wasLocallyCollected = Boolean(
+          localCurrentOrder &&
+          String(localCurrentOrder.orderId) === String(ordId) &&
+          localCurrentOrder.codCollected
+        );
+
+        const isCollected = Boolean(
+          wasLocallyCollected ||
+          ordObj?.codCollected ||
+          ordObj?.paymentStatus === 'Paid' ||
+          ordObj?.isPaid ||
+          activeAssigned?.codCollected ||
+          activeAssigned?.status === 'Delivered'
+        );
+
         const activeOrder: OrderOffer = {
           orderId: String(ordId),
           orderNumber: ordObj?.orderNumber || activeAssigned.orderNumber || 'AB-1785932178923-4753',
@@ -164,14 +203,18 @@ export const apiOrderService: OrderService = {
           },
           paymentType: (ordObj?.paymentMethod === 'COD' || ordObj?.paymentDetails?.method === 'cod' || ordObj?.paymentStatus === 'Pending') ? 'COD' : 'Prepaid',
           codAmount: ordObj?.totalAmount || ordObj?.orderSummary?.total || 36.00,
-          codCollected: Boolean(ordObj?.codCollected || ordObj?.paymentStatus === 'Paid' || ordObj?.isPaid),
-          codPaymentMethod: ordObj?.codPaymentMethod || ordObj?.paymentDetails?.method || 'UPI',
+          codCollected: isCollected,
+          codPaymentMethod: isCollected
+            ? (localCurrentOrder?.codPaymentMethod || ordObj?.codPaymentMethod || ordObj?.paymentDetails?.method || 'UPI')
+            : (ordObj?.codPaymentMethod || ordObj?.paymentDetails?.method || 'UPI'),
+          paymentStatus: isCollected ? 'Paid' : (ordObj?.paymentStatus || 'Pending'),
+          isPaid: isCollected,
           category: isFoodType
             ? 'Food & Dining'
             : (ordObj?.items?.[0]?.productName || ordObj?.items?.[0]?.name || 'Retail Product Delivery'),
           packageCount: ordObj?.items?.reduce((acc: number, item: any) => acc + (item.quantity || 1), 0) || 1,
           estimatedTotalTimeMins: 25,
-          estimatedEarnings: Math.max(55.0, Math.round(35 + (1.4 + 4.8) * 6)),
+          estimatedEarnings: extractShippingFee(ordObj, activeAssigned),
           expiresInSeconds: 0,
           status: rawStatus
         };
@@ -237,9 +280,7 @@ export const apiOrderService: OrderService = {
           : (ordObj?.items?.[0]?.productName || ordObj?.items?.[0]?.name || 'Retail Product Delivery'),
         packageCount: ordObj?.items?.reduce((acc: number, item: any) => acc + (item.quantity || 1), 0) || 1,
         estimatedTotalTimeMins: 25,
-        estimatedEarnings: (ordObj?.orderSummary?.shippingFee && ordObj.orderSummary.shippingFee > 20)
-          ? ordObj.orderSummary.shippingFee
-          : Math.max(55.0, Math.round(35 + (1.4 + 4.8) * 6)),
+        estimatedEarnings: extractShippingFee(ordObj, pendingAssigned),
         expiresInSeconds: 0,
         status: pendingAssigned.status || 'Assigned'
       };
@@ -268,7 +309,7 @@ export const apiOrderService: OrderService = {
     if (current) {
       try {
         await apiClient.post(`/orders/${current.orderId}/reject`, { reason });
-      } catch {}
+      } catch { }
     }
     useAppStore.getState().rejectOffer(reason);
   },
@@ -279,7 +320,7 @@ export const apiOrderService: OrderService = {
     if (targetId) {
       try {
         await apiClient.post(`/orders/${targetId}/reached-pickup`);
-      } catch {}
+      } catch { }
     }
     useAppStore.getState().markReachedVendor();
   },
@@ -290,7 +331,7 @@ export const apiOrderService: OrderService = {
     if (targetId) {
       try {
         await apiClient.post(`/orders/${targetId}/pickup`, { otp });
-      } catch {}
+      } catch { }
     }
     return useAppStore.getState().verifyPickupOtp(otp);
   },
@@ -302,7 +343,7 @@ export const apiOrderService: OrderService = {
       try {
         await apiClient.post(`/orders/${targetId}/out-for-delivery`);
         await apiClient.post(`/orders/${targetId}/pickup`);
-      } catch {}
+      } catch { }
     }
     useAppStore.getState().confirmPickup();
   },
@@ -313,7 +354,7 @@ export const apiOrderService: OrderService = {
     if (targetId) {
       try {
         await apiClient.post(`/orders/${targetId}/reached-customer`);
-      } catch {}
+      } catch { }
     }
     useAppStore.getState().markReachedCustomer();
   },
@@ -324,18 +365,29 @@ export const apiOrderService: OrderService = {
     if (targetId) {
       try {
         await apiClient.post(`/orders/${targetId}/delivered`, { otp });
-      } catch {}
+      } catch { }
     }
     return useAppStore.getState().verifyDeliveryOtp(otp);
   },
 
   async confirmCodPayment(method: 'Cash' | 'UPI'): Promise<void> {
     const current = useAppStore.getState().currentOrder;
+    if (current) {
+      useAppStore.setState({
+        currentOrder: {
+          ...current,
+          codCollected: true,
+          codPaymentMethod: method,
+          paymentStatus: 'Paid',
+          isPaid: true
+        }
+      });
+    }
     const targetId = current?.orderId || getUrlOrderId();
     if (targetId) {
       try {
         await apiClient.post(`/orders/${targetId}/cod-payment`, { method, amount: current?.codAmount || current?.estimatedEarnings || 150 });
-      } catch {}
+      } catch { }
     }
     useAppStore.getState().confirmCodPayment(method);
   },
@@ -349,7 +401,7 @@ export const apiOrderService: OrderService = {
           otp: current?.customer?.deliveryOtp || '3221',
           deliveryNote: 'Delivered directly to customer'
         });
-      } catch {}
+      } catch { }
     }
     useAppStore.getState().completeDelivery();
   },
@@ -360,10 +412,7 @@ export const apiOrderService: OrderService = {
       if (res.data && res.data.assignments) {
         return res.data.assignments.map((a: any) => {
           const ordObj = typeof a.orderId === 'object' ? a.orderId : null;
-          const totalKm = 1.4 + 4.8;
-          const calculatedPay = (ordObj?.orderSummary?.shippingFee && ordObj.orderSummary.shippingFee > 20)
-            ? ordObj.orderSummary.shippingFee
-            : Math.max(68.0, Math.round(35 + totalKm * 7.5));
+          const calculatedPay = extractShippingFee(ordObj, a);
 
           return {
             orderId: String(ordObj?._id || a.orderId || a._id),
@@ -400,9 +449,35 @@ export const apiOrderService: OrderService = {
     } catch (err) {
       console.error('[OrderService] getOrderHistory failed:', err);
     }
-    // NEVER fall back to stale localStorage mock orders — return empty so only this partner's real delivered orders show
     return [];
   }
 };
 
+export function getCategoryRoutePath(category: string, orderId: string): string {
+  const cat = (category || '').toLowerCase();
+  if (cat.includes('water') || cat.includes('can') || cat.includes('bubble') || cat.includes('20l')) {
+    return `/app/orders/active/water-can/${orderId}`;
+  }
+  if (cat.includes('food') || cat.includes('dining') || cat.includes('restaurant') || cat.includes('biryani')) {
+    return `/app/orders/active/food/${orderId}`;
+  }
+  if (cat.includes('subscription') || cat.includes('milk') || cat.includes('daily')) {
+    return `/app/orders/active/subscription/${orderId}`;
+  }
+  if (cat.includes('grocery') || cat.includes('meat') || cat.includes('fish') || cat.includes('fresh')) {
+    return `/app/orders/active/grocery/${orderId}`;
+  }
+  if (cat.includes('devotional') || cat.includes('pooja') || cat.includes('flower')) {
+    return `/app/orders/active/devotional/${orderId}`;
+  }
+  if (cat.includes('electronic') || cat.includes('mobile') || cat.includes('phone') || cat.includes('gadget')) {
+    return `/app/orders/active/electronics/${orderId}`;
+  }
+  if (cat.includes('medicine') || cat.includes('pharmacy') || cat.includes('health')) {
+    return `/app/orders/active/medicine/${orderId}`;
+  }
+  return `/app/orders/active/retail/${orderId}`;
+}
+
 export const orderService: OrderService = apiOrderService;
+

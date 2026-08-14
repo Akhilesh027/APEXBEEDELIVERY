@@ -23,7 +23,17 @@ export const ActiveDeliveryPage: React.FC = () => {
     const fetchCurrent = async () => {
       const offer = await orderService.getCurrentOffer();
       if (offer) {
-        useAppStore.setState({ currentOrder: offer });
+        const storeCurrent = useAppStore.getState().currentOrder;
+        const wasCollected = Boolean(storeCurrent?.codCollected || offer.codCollected);
+        useAppStore.setState({
+          currentOrder: {
+            ...offer,
+            codCollected: wasCollected,
+            codPaymentMethod: wasCollected ? (storeCurrent?.codPaymentMethod || offer.codPaymentMethod || 'UPI') : offer.codPaymentMethod,
+            paymentStatus: wasCollected ? 'Paid' : (offer.paymentStatus || 'Pending'),
+            isPaid: wasCollected ? true : offer.isPaid
+          }
+        });
       }
     };
     fetchCurrent();
@@ -67,11 +77,39 @@ export const ActiveDeliveryPage: React.FC = () => {
 
   const status = currentOrderObj.status;
 
+  const updateCurrentOfferWithPreservedPayment = async (newStatus?: string) => {
+    const offer = await orderService.getCurrentOffer();
+    const wasCollected = Boolean(currentOrderObj.codCollected || useAppStore.getState().currentOrder?.codCollected);
+    if (offer) {
+      useAppStore.setState({
+        currentOrder: {
+          ...offer,
+          status: newStatus || offer.status,
+          codCollected: wasCollected,
+          codPaymentMethod: wasCollected ? (currentOrderObj.codPaymentMethod || offer.codPaymentMethod || 'UPI') : offer.codPaymentMethod,
+          paymentStatus: wasCollected ? 'Paid' : (offer.paymentStatus || 'Pending'),
+          isPaid: wasCollected ? true : offer.isPaid
+        }
+      });
+    } else if (currentOrderObj && newStatus) {
+      useAppStore.setState({
+        currentOrder: {
+          ...currentOrderObj,
+          status: newStatus,
+          codCollected: wasCollected,
+          paymentStatus: wasCollected ? 'Paid' : currentOrderObj.paymentStatus,
+          isPaid: wasCollected ? true : currentOrderObj.isPaid
+        }
+      });
+    }
+  };
+
   // Handlers for status transitions
   const handleReachedVendor = async () => {
     setLoading(true);
     try {
       await orderService.markReachedVendor();
+      await updateCurrentOfferWithPreservedPayment('Reached Vendor');
     } finally {
       setLoading(false);
     }
@@ -83,14 +121,10 @@ export const ActiveDeliveryPage: React.FC = () => {
     try {
       const valid = await orderService.verifyPickupOtp(otp);
       if (valid || otp === (currentOrderObj.vendor.pickupOtp || '3431')) {
-        if (currentOrderObj) {
-          useAppStore.setState({ currentOrder: { ...currentOrderObj, status: 'Pickup OTP Verified' } });
-        }
+        await updateCurrentOfferWithPreservedPayment('Pickup OTP Verified');
       } else {
         setOtpError(`Invalid Pickup OTP. Please enter code ${currentOrderObj.vendor.pickupOtp || '3431'}.`);
       }
-      const offer = await orderService.getCurrentOffer();
-      if (offer) useAppStore.setState({ currentOrder: offer });
     } finally {
       setLoading(false);
     }
@@ -100,11 +134,7 @@ export const ActiveDeliveryPage: React.FC = () => {
     setLoading(true);
     try {
       await orderService.confirmPickup();
-      if (currentOrderObj) {
-        useAppStore.setState({ currentOrder: { ...currentOrderObj, status: 'out_for_delivery' } });
-      }
-      const offer = await orderService.getCurrentOffer();
-      if (offer) useAppStore.setState({ currentOrder: offer });
+      await updateCurrentOfferWithPreservedPayment('out_for_delivery');
     } finally {
       setLoading(false);
     }
@@ -114,11 +144,7 @@ export const ActiveDeliveryPage: React.FC = () => {
     setLoading(true);
     try {
       await orderService.markReachedCustomer();
-      if (currentOrderObj) {
-        useAppStore.setState({ currentOrder: { ...currentOrderObj, status: 'Reached Customer' } });
-      }
-      const offer = await orderService.getCurrentOffer();
-      if (offer) useAppStore.setState({ currentOrder: offer });
+      await updateCurrentOfferWithPreservedPayment('Reached Customer');
     } finally {
       setLoading(false);
     }
@@ -130,14 +156,10 @@ export const ActiveDeliveryPage: React.FC = () => {
     try {
       const valid = await orderService.verifyDeliveryOtp(otp);
       if (valid || otp === (currentOrderObj.customer.deliveryOtp || '3221')) {
-        if (currentOrderObj) {
-          useAppStore.setState({ currentOrder: { ...currentOrderObj, status: 'Delivery OTP Verified' } });
-        }
+        await updateCurrentOfferWithPreservedPayment('Delivery OTP Verified');
       } else {
         setOtpError(`Invalid Delivery OTP. Please enter code ${currentOrderObj.customer.deliveryOtp || '3221'}.`);
       }
-      const offer = await orderService.getCurrentOffer();
-      if (offer) useAppStore.setState({ currentOrder: offer });
     } finally {
       setLoading(false);
     }
@@ -202,11 +224,10 @@ export const ActiveDeliveryPage: React.FC = () => {
 
       {/* Real-time Kitchen Status Banner (For Food & Dining Orders) */}
       {isFoodOrder && (
-        <div className={`p-4 rounded-2xl border flex items-center justify-between shadow-xs ${
-          ['ready_for_pickup', 'Ready', 'Packed', 'out_for_delivery', 'Out for Delivery'].includes(status)
+        <div className={`p-4 rounded-2xl border flex items-center justify-between shadow-xs ${['ready_for_pickup', 'Ready', 'Packed', 'out_for_delivery', 'Out for Delivery'].includes(status)
             ? 'bg-emerald-50 border-emerald-200 text-emerald-900'
             : 'bg-amber-50 border-amber-200 text-amber-900'
-        }`}>
+          }`}>
           <div className="flex items-center space-x-3">
             {['ready_for_pickup', 'Ready', 'Packed', 'out_for_delivery', 'Out for Delivery'].includes(status) ? (
               <UtensilsCrossed className="w-5 h-5 text-emerald-600 shrink-0" />
@@ -219,8 +240,8 @@ export const ActiveDeliveryPage: React.FC = () => {
                 {['out_for_delivery', 'Out for Delivery', 'Picked Up'].includes(status)
                   ? '🚴 Food Handed Over — Rider is Heading to Customer'
                   : ['ready_for_pickup', 'Ready', 'Packed'].includes(status)
-                  ? '🍲 Order Cooked & Ready for Pickup at Restaurant!'
-                  : '🔥 Chef is Currently Preparing Food in Kitchen'}
+                    ? '🍲 Order Cooked & Ready for Pickup at Restaurant!'
+                    : '🔥 Chef is Currently Preparing Food in Kitchen'}
               </span>
             </div>
           </div>
@@ -368,7 +389,20 @@ export const ActiveDeliveryPage: React.FC = () => {
             <NavigationAction address={currentOrderObj.customer.address} label="Open Dropoff Route" />
           </div>
 
-          {currentOrderObj.paymentType === 'COD' && (
+          {currentOrderObj.paymentType === 'Prepaid' || currentOrderObj.paymentType === 'Paid' || currentOrderObj.codCollected ? (
+            <div className="p-4 bg-emerald-50 border-2 border-emerald-500 rounded-2xl flex items-center justify-between text-emerald-900 shadow-xs">
+              <div className="flex items-center space-x-2.5">
+                <CheckCircle2 className="h-5 w-5 text-emerald-600 shrink-0" />
+                <div>
+                  <span className="text-xs font-black uppercase text-emerald-800 block">Payment Status: PAID</span>
+                  <span className="text-[11px] text-emerald-700 font-semibold block">
+                    {currentOrderObj.paymentType === 'Prepaid' ? 'Online Prepaid (No cash collection required)' : `COD Collected via ${currentOrderObj.codPaymentMethod || 'UPI/Cash'}`}
+                  </span>
+                </div>
+              </div>
+              <span className="font-mono font-black text-emerald-700 text-sm">PAID ✅</span>
+            </div>
+          ) : (
             <div className="p-4 bg-amber-50 border border-amber-200 rounded-2xl space-y-3">
               <div className="flex justify-between items-center text-xs font-bold text-amber-900">
                 <div className="flex items-center space-x-2">
@@ -380,23 +414,13 @@ export const ActiveDeliveryPage: React.FC = () => {
                 </span>
               </div>
 
-              {currentOrderObj.codCollected ? (
-                <div className="p-3 bg-emerald-100 border border-emerald-300 rounded-xl text-xs font-extrabold text-[#16A34A] flex items-center justify-between">
-                  <div className="flex items-center space-x-2">
-                    <CheckCircle2 className="h-4 w-4 shrink-0" />
-                    <span>Payment Verified &amp; Collected via {currentOrderObj.codPaymentMethod || 'UPI/Cash'}</span>
-                  </div>
-                  <span className="font-mono">₹{codAmount.toFixed(2)}</span>
-                </div>
-              ) : (
-                <button
-                  onClick={() => setShowScannerModal(true)}
-                  className="w-full py-3 bg-[#171717] hover:bg-neutral-800 text-white font-extrabold text-xs sm:text-sm rounded-xl shadow-xs transition-all flex items-center justify-center space-x-2 cursor-pointer"
-                >
-                  <QrCode className="h-4 w-4 text-[#F5B800]" />
-                  <span>Collect Payment (Show/Scan UPI QR or Cash)</span>
-                </button>
-              )}
+              <button
+                onClick={() => setShowScannerModal(true)}
+                className="w-full py-3 bg-[#171717] hover:bg-neutral-800 text-white font-extrabold text-xs sm:text-sm rounded-xl shadow-xs transition-all flex items-center justify-center space-x-2 cursor-pointer"
+              >
+                <QrCode className="h-4 w-4 text-[#F5B800]" />
+                <span>Collect Payment (Show/Scan UPI QR or Cash)</span>
+              </button>
             </div>
           )}
 

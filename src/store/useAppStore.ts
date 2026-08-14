@@ -328,7 +328,9 @@ export const useAppStore = createStore<AppStoreState>((set, get) => ({
       currentOrder: {
         ...current,
         codCollected: true,
-        codPaymentMethod: method
+        codPaymentMethod: method,
+        paymentStatus: 'Paid',
+        isPaid: true
       }
     });
   },

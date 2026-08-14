@@ -19,7 +19,8 @@ export type DisplayDeliveryStatus =
   | 'delivered'
   | 'Pending'
   | 'pending'
-  | 'unassigned';
+  | 'unassigned'
+  | (string & {});
 
 export interface OrderItem {
   id: string;
@@ -55,7 +56,9 @@ export interface OrderOffer {
   orderType?: 'FOOD' | 'RETAIL' | string;
   vendor: VendorInfo;
   customer: CustomerInfo;
-  paymentType: 'Prepaid' | 'COD';
+  paymentType: 'Prepaid' | 'COD' | 'Paid' | string;
+  paymentStatus?: string;
+  isPaid?: boolean;
   codAmount?: number;
   category: string;
   packageCount: number;

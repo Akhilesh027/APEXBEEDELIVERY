@@ -8,11 +8,20 @@ import { useNavigate } from '../../app/simpleRouter';
 export const OrderOfferSheet: React.FC = () => {
   const { partner, activeOffer } = useAppStore();
   const [showRejectSheet, setShowRejectSheet] = useState(false);
+  const [dismissedOfferIds, setDismissedOfferIds] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const navigate = useNavigate();
 
-  if (!activeOffer) return null;
+  if (!activeOffer || (activeOffer.orderId && dismissedOfferIds.includes(activeOffer.orderId))) {
+    return null;
+  }
+
+  const handleDismiss = () => {
+    if (activeOffer?.orderId) {
+      setDismissedOfferIds(prev => [...prev, activeOffer.orderId]);
+    }
+  };
 
   const isDriverUnavailable = partner.availability === 'Offline' || partner.availability === 'Break';
 
@@ -30,11 +39,8 @@ export const OrderOfferSheet: React.FC = () => {
 
   const cleanCustomerAddress = activeOffer.customer?.address || 'Palodi, Adilabad, Telangana - 504312';
 
-  // Realistic rider pay calculation: Base ₹35 + ₹7.50 per total Km
-  const calculatedEarnings =
-    activeOffer.estimatedEarnings && activeOffer.estimatedEarnings > 20
-      ? activeOffer.estimatedEarnings
-      : Math.max(68.0, Math.round(35 + totalDistanceKm * 7.5));
+  // Rider pay: directly uses shipping charges set on the order
+  const calculatedEarnings = activeOffer.estimatedEarnings || (activeOffer as any).shippingFee || 0;
 
   // Dynamic estimated total time: (Total Distance * 3.5 mins/km) + 5 mins pickup buffer
   const calculatedEstTime =
@@ -90,9 +96,9 @@ export const OrderOfferSheet: React.FC = () => {
               </div>
 
               <button
-                onClick={() => setShowRejectSheet(true)}
+                onClick={handleDismiss}
                 className="p-1.5 text-neutral-400 hover:text-neutral-700 hover:bg-neutral-100 rounded-full transition cursor-pointer"
-                title="Dismiss & Reject Offer"
+                title="Close popup without rejecting"
               >
                 <X className="h-5 w-5 text-neutral-600" />
               </button>
@@ -142,10 +148,17 @@ export const OrderOfferSheet: React.FC = () => {
 
             {/* Package & Payment Meta Grid */}
             <div className="grid grid-cols-3 gap-2.5 text-xs text-[#171717]">
-              <div className="bg-white border border-[#E5E7EB] p-2.5 rounded-xl text-center">
-                <span className="text-[10px] text-[#6B7280] font-bold block uppercase">Payment</span>
-                <span className="font-extrabold text-[#171717] mt-0.5 block">{activeOffer.paymentType}</span>
-              </div>
+              {activeOffer.paymentType === 'Prepaid' || activeOffer.paymentStatus === 'Paid' ? (
+                <div className="bg-emerald-50 border border-emerald-300 p-2.5 rounded-xl text-center">
+                  <span className="text-[10px] text-emerald-800 font-extrabold block uppercase">Payment</span>
+                  <span className="font-black text-emerald-700 mt-0.5 block">PAID (Online)</span>
+                </div>
+              ) : (
+                <div className="bg-amber-50 border border-amber-300 p-2.5 rounded-xl text-center">
+                  <span className="text-[10px] text-amber-800 font-extrabold block uppercase">Payment</span>
+                  <span className="font-black text-amber-900 mt-0.5 block">COD (₹{activeOffer.codAmount || 150})</span>
+                </div>
+              )}
               <div className="bg-white border border-[#E5E7EB] p-2.5 rounded-xl text-center">
                 <span className="text-[10px] text-[#6B7280] font-bold block uppercase">Packages</span>
                 <span className="font-extrabold text-[#171717] mt-0.5 block">{activeOffer.packageCount} Bags</span>

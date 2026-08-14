@@ -25,7 +25,7 @@ export const HomeDashboard: React.FC = () => {
   const [morningSubscriptions, setMorningSubscriptions] = useState<any[]>([]);
 
   useEffect(() => {
-    partnerService.getCurrentPartner().catch(() => {});
+    partnerService.getCurrentPartner().catch(() => { });
   }, []);
 
   const fetchSubscriptions = async () => {
@@ -33,7 +33,7 @@ export const HomeDashboard: React.FC = () => {
       const res = await apiClient.get('/subscriptions');
       const subs = res.data?.subscriptions || [];
       setMorningSubscriptions(subs);
-    } catch (err) {}
+    } catch (err) { }
   };
 
   const fetchBroadcasts = async () => {
@@ -44,7 +44,7 @@ export const HomeDashboard: React.FC = () => {
         (a: any) => a.status === 'Assigned' || a.status === 'Pending' || a.status === 'pending'
       );
       setBroadcastOrders(pending);
-    } catch (err) {}
+    } catch (err) { }
   };
 
   useEffect(() => {
@@ -201,7 +201,7 @@ export const HomeDashboard: React.FC = () => {
                           try {
                             await apiClient.post(`/subscriptions/${subId}/status`, { status: 'Out for Delivery' });
                             fetchSubscriptions();
-                          } catch (e) {}
+                          } catch (e) { }
                         }}
                         className="px-3.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white font-black text-xs rounded-xl border-none cursor-pointer shadow-xs transition"
                       >
@@ -215,7 +215,7 @@ export const HomeDashboard: React.FC = () => {
                           try {
                             await apiClient.post(`/subscriptions/${subId}/status`, { status: 'Delivered' });
                             fetchSubscriptions();
-                          } catch (e) {}
+                          } catch (e) { }
                         }}
                         className="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs rounded-xl border-none cursor-pointer shadow-xs transition"
                       >
@@ -255,7 +255,7 @@ export const HomeDashboard: React.FC = () => {
               const cAddr = bOrdObj?.shippingAddress
                 ? `${bOrdObj.shippingAddress.addressLine1 || bOrdObj.shippingAddress.address || ''}, ${bOrdObj.shippingAddress.city || ''}`
                 : bOrder.customerId?.address || 'Palodi, Adilabad, Telangana';
-              const bEarnings = bOrdObj?.orderSummary?.shippingFee || Math.max(68, Math.round(35 + (index + 1) * 12));
+              const bEarnings = bOrdObj?.orderSummary?.shippingFee || bOrdObj?.shippingFee || bOrdObj?.deliveryFee || bOrder.shippingFee || bOrder.deliveryFee || 0;
 
               return (
                 <div key={bOrdId} className="bg-white border-2 border-[#F5B800] p-4 sm:p-5 rounded-2xl shadow-md space-y-3">
@@ -292,7 +292,7 @@ export const HomeDashboard: React.FC = () => {
                       onClick={async () => {
                         try {
                           await apiClient.post(`/orders/${bOrdId}/reject`, { reason: 'Skipped by driver' });
-                        } catch (e) {}
+                        } catch (e) { }
                         fetchBroadcasts();
                       }}
                       className="flex-1 py-2.5 bg-neutral-100 hover:bg-neutral-200 text-neutral-700 font-bold text-xs rounded-xl transition cursor-pointer flex items-center justify-center space-x-1"

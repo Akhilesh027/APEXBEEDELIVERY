@@ -67,8 +67,23 @@ export const OrdersListPage: React.FC = () => {
                 </div>
                 <div className="flex items-center space-x-1.5 sm:justify-end">
                   <DollarSign className="h-3.5 w-3.5 text-[#F5B800] shrink-0" />
-                  <span className="font-extrabold text-[#171717]">Earnings: ₹{(order.estimatedEarnings || 72.0).toFixed(2)}</span>
+                  <span className="font-extrabold text-[#171717]">Earnings: ₹{Number(order.estimatedEarnings || 0).toFixed(2)}</span>
                 </div>
+              </div>
+
+              {/* Payment Status Tag */}
+              <div className="flex items-center justify-between text-xs pt-1">
+                <span className="text-[11px] text-neutral-500 font-medium">Payment Status:</span>
+                {order.paymentType === 'Prepaid' || order.codCollected || order.paymentStatus === 'Paid' ? (
+                  <span className="px-2.5 py-0.5 bg-emerald-100 border border-emerald-300 text-emerald-800 rounded-full font-extrabold text-[10px] uppercase flex items-center gap-1">
+                    <CheckCircle2 className="h-3 w-3 text-emerald-600" />
+                    PAID ({order.paymentType === 'COD' ? 'COD Collected' : 'Online Prepaid'})
+                  </span>
+                ) : (
+                  <span className="px-2.5 py-0.5 bg-amber-100 border border-amber-300 text-amber-900 rounded-full font-extrabold text-[10px] uppercase">
+                    COD Pending (₹{order.codAmount || 150})
+                  </span>
+                )}
               </div>
 
               <div className="flex justify-between items-center text-xs border-t border-[#E5E7EB] pt-2.5">
@@ -123,8 +138,8 @@ export const OrdersListPage: React.FC = () => {
                   </strong>
                   <span className="text-[#6B7280] leading-tight block mt-0.5">
                     📍 {(selectedDeliveredOrder.vendor?.address && !selectedDeliveredOrder.vendor.address.toLowerCase().includes('lb nagar'))
-                        ? selectedDeliveredOrder.vendor.address
-                        : 'NH67, బుచ్చిరెడ్డిపాలెం, Sri Potti Sriramulu Nellore, Andhra Pradesh, 524305, India'}
+                      ? selectedDeliveredOrder.vendor.address
+                      : 'NH67, బుచ్చిరెడ్డిపాలెం, Sri Potti Sriramulu Nellore, Andhra Pradesh, 524305, India'}
                   </span>
                   <span className="text-neutral-500 font-mono block mt-1">
                     📞 {selectedDeliveredOrder.vendor?.phone || '9177176969'}
@@ -157,20 +172,35 @@ export const OrdersListPage: React.FC = () => {
               <div className="bg-emerald-50 border border-emerald-200 p-3 rounded-2xl">
                 <span className="text-[10px] text-emerald-700 font-bold block uppercase">Rider Payout</span>
                 <span className="text-base font-extrabold text-emerald-700 block mt-0.5">
-                  ₹{(selectedDeliveredOrder.estimatedEarnings || 72.0).toFixed(2)}
+                  ₹{Number(selectedDeliveredOrder.estimatedEarnings || 0).toFixed(2)}
                 </span>
                 <span className="text-[9px] text-emerald-600 font-sans block mt-0.5">Credited to Rider Wallet</span>
               </div>
 
-              <div className="bg-blue-50 border border-blue-200 p-3 rounded-2xl">
-                <span className="text-[10px] text-blue-700 font-bold block uppercase">Payment Mode</span>
-                <span className="text-base font-extrabold text-blue-700 block mt-0.5">
-                  {selectedDeliveredOrder.paymentType || 'COD'}
-                </span>
-                <span className="text-[9px] text-blue-600 font-sans block mt-0.5">
-                  {selectedDeliveredOrder.paymentType === 'COD' ? `Amount: ₹${selectedDeliveredOrder.codAmount || 150}` : 'Online Prepaid'}
-                </span>
-              </div>
+              {selectedDeliveredOrder.paymentType === 'Prepaid' || selectedDeliveredOrder.codCollected || selectedDeliveredOrder.paymentStatus === 'Paid' ? (
+                <div className="bg-emerald-50 border-2 border-emerald-500 p-3 rounded-2xl shadow-xs">
+                  <span className="text-[10px] text-emerald-800 font-black block uppercase flex items-center gap-1">
+                    <CheckCircle2 className="h-3 w-3 text-emerald-600" />
+                    Payment: PAID
+                  </span>
+                  <span className="text-base font-black text-emerald-700 block mt-0.5">
+                    {selectedDeliveredOrder.paymentType === 'Prepaid' ? 'PAID ONLINE' : `₹${selectedDeliveredOrder.codAmount || 150}`}
+                  </span>
+                  <span className="text-[9px] text-emerald-700 font-bold font-sans block mt-0.5">
+                    {selectedDeliveredOrder.paymentType === 'Prepaid' ? 'Prepaid Order' : 'COD Payment Collected'}
+                  </span>
+                </div>
+              ) : (
+                <div className="bg-amber-50 border border-amber-200 p-3 rounded-2xl">
+                  <span className="text-[10px] text-amber-700 font-bold block uppercase">Payment Status</span>
+                  <span className="text-base font-extrabold text-amber-700 block mt-0.5">
+                    COD (Pending)
+                  </span>
+                  <span className="text-[9px] text-amber-600 font-sans block mt-0.5">
+                    Collect ₹{selectedDeliveredOrder.codAmount || 150}
+                  </span>
+                </div>
+              )}
             </div>
 
             {/* Delivered Verification Metadata */}
