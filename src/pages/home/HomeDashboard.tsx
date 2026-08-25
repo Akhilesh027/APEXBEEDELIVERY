@@ -11,22 +11,43 @@ import { Package, IndianRupee, Clock, Award, TrendingUp, MapPin, CheckCircle2, X
 export const HomeDashboard: React.FC = () => {
   const {
     partner,
-    completedCountToday,
-    incentivesEarnedToday,
     currentOrder,
     activeOffer,
     orderHistory
   } = useAppStore();
-  const todayEarnings = orderHistory.reduce((sum, o) => sum + (o.estimatedEarnings || 0), 0);
-  const deliveriesCompletedToday = completedCountToday || orderHistory.length;
 
   const [broadcastOrders, setBroadcastOrders] = useState<any[]>([]);
   const [acceptingId, setAcceptingId] = useState<string | null>(null);
   const [morningSubscriptions, setMorningSubscriptions] = useState<any[]>([]);
+  const [analytics, setAnalytics] = useState<{
+    todayEarnings: number;
+    todayIncentives: number;
+    completedCount: number;
+    acceptanceRate: number;
+  }>({
+    todayEarnings: 0,
+    todayIncentives: 0,
+    completedCount: 0,
+    acceptanceRate: 100
+  });
 
   useEffect(() => {
     partnerService.getCurrentPartner().catch(() => { });
   }, []);
+
+  const fetchAnalytics = async () => {
+    try {
+      const res = await apiClient.get('/analytics');
+      if (res.data) {
+        setAnalytics({
+          todayEarnings: res.data.todayEarnings ?? 0,
+          todayIncentives: res.data.todayIncentives ?? 0,
+          completedCount: res.data.completedCount ?? 0,
+          acceptanceRate: res.data.acceptanceRate ?? 100
+        });
+      }
+    } catch (err) { }
+  };
 
   const fetchSubscriptions = async () => {
     try {
@@ -50,9 +71,11 @@ export const HomeDashboard: React.FC = () => {
   useEffect(() => {
     fetchBroadcasts();
     fetchSubscriptions();
+    fetchAnalytics();
     const interval = setInterval(() => {
       fetchBroadcasts();
       fetchSubscriptions();
+      fetchAnalytics();
     }, 4000);
     return () => clearInterval(interval);
   }, []);
@@ -92,11 +115,11 @@ export const HomeDashboard: React.FC = () => {
 
   const partnerFirstName = partner?.name ? partner.name.split(' ')[0] : 'Rider';
   const partnerId = partner?.deliveryPartnerId || 'AB-DP-000125';
-  const partnerZone = partner?.zone || 'LB Nagar';
-  const acceptanceRate = partner?.performance?.acceptanceRate ?? 100;
-  const safeDeliveries = deliveriesCompletedToday ?? 0;
-  const safeEarnings = todayEarnings ?? 0;
-  const safeIncentives = incentivesEarnedToday ?? 0;
+  const partnerZone = partner?.zone || partner?.city || 'Tamsi Mandal';
+  const acceptanceRate = analytics.acceptanceRate ?? (partner?.performance?.acceptanceRate ?? 100);
+  const safeDeliveries = analytics.completedCount ?? (orderHistory.length || 0);
+  const safeEarnings = analytics.todayEarnings ?? 0;
+  const safeIncentives = analytics.todayIncentives ?? 0;
 
   return (
     <div className="space-y-6">
@@ -233,15 +256,15 @@ export const HomeDashboard: React.FC = () => {
       {/* Active Delivery Progress Card (if order exists) */}
       {currentOrder && <ActiveDeliveryCard />}
 
-      {/* Available Broadcast Delivery Requests Feed */}
+      {/* Assigned Delivery Orders Feed */}
       {!currentOrder && broadcastOrders.length > 0 && (
         <div className="space-y-3">
           <div className="flex items-center justify-between">
             <h3 className="text-sm font-extrabold text-[#171717] flex items-center space-x-2">
               <span className="h-3 w-3 rounded-full bg-[#F59E0B] animate-ping" />
-              <span>Available Delivery Broadcasts ({broadcastOrders.length})</span>
+              <span>Assigned Deliveries ({broadcastOrders.length})</span>
             </h3>
-            <span className="text-[11px] font-semibold text-[#6B7280]">Real-time Nearby Pool</span>
+            <span className="text-[11px] font-semibold text-[#6B7280]">Assigned to You</span>
           </div>
 
           <div className="space-y-3">
@@ -341,7 +364,7 @@ export const HomeDashboard: React.FC = () => {
       )}
 
       {/* Key Metrics Overview Grid */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5 sm:gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3.5 sm:gap-4">
         <MetricCard
           label="Today's Earnings"
           value={`₹${safeEarnings}`}

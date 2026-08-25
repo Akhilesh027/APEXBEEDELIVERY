@@ -27,13 +27,13 @@ export const ProfilePage: React.FC = () => {
   // Initial State from Store
   const [name, _setName] = useState(partner?.name || 'delivery');
   const [phone, _setPhone] = useState(partner?.phone || partner?.mobile || '9550379505');
-  const [zone, _setZone] = useState(partner?.zone || 'LB Nagar');
+  const [zone, _setZone] = useState(partner?.zone || partner?.city || 'Tamsi Mandal');
   
   // Live GPS Location State
   const [liveLat, setLiveLat] = useState<number>(partner?.currentLocation?.lat || 19.7207);
   const [liveLng, setLiveLng] = useState<number>(partner?.currentLocation?.lng || 78.4186);
   const [liveAddress, setLiveAddress] = useState<string>(
-    partner?.currentLocation?.address || `${partner?.zone || 'LB Nagar'}, Hyderabad`
+    partner?.currentLocation?.address || `${partner?.zone || partner?.city || 'Tamsi Mandal'}, Adilabad`
   );
   const [isLocating, setIsLocating] = useState(false);
 

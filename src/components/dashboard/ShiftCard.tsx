@@ -44,7 +44,7 @@ export const ShiftCard: React.FC = () => {
             Shift Schedule &amp; Roster
           </span>
           <h3 className="text-base font-bold text-[#171717] mt-0.5">{partner.shift || 'Morning Shift'}</h3>
-          <p className="text-xs text-[#6B7280] font-medium mt-0.5">Assigned Zone: {partner.zone || 'LB Nagar'}</p>
+          <p className="text-xs text-[#6B7280] font-medium mt-0.5">Assigned Zone: {partner.zone || partner.city || 'Tamsi Mandal'}</p>
         </div>
 
         <Link

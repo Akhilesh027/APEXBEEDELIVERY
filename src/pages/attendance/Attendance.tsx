@@ -166,7 +166,7 @@ export const AttendancePage: React.FC = () => {
             </h2>
             <p className="text-xs text-neutral-400">
               {isCheckedIn
-                ? `Check-In verified at ${partner?.clockedInAt || '06:00 AM'} • Assigned Zone: ${partner?.zone || 'LB Nagar'}`
+                ? `Check-In verified at ${partner?.clockedInAt || '06:00 AM'} • Assigned Zone: ${partner?.zone || partner?.city || 'Tamsi Mandal'}`
                 : 'Click Check-In below to scan QR code / selfie ID and start duty.'}
             </p>
           </div>

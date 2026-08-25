@@ -110,9 +110,12 @@ function parseVendorAddress(ordObj: any, assigned: any): string {
 
 function getUrlOrderId(): string | null {
   if (typeof window !== 'undefined') {
-    const parts = window.location.pathname.split('/');
+    const pathname = window.location.pathname.split('?')[0];
+    const parts = pathname.split('/').filter(Boolean);
     const last = parts[parts.length - 1];
-    if (last && last !== 'active' && last.length > 5) return last;
+    if (last && last !== 'active' && last.length >= 8) {
+      return last.trim();
+    }
   }
   return null;
 }
@@ -142,15 +145,44 @@ export function extractShippingFee(ordObj: any, assignment?: any): number {
 export const apiOrderService: OrderService = {
   async getCurrentOffer(): Promise<OrderOffer | null> {
     try {
+      const urlId = getUrlOrderId();
       const res = await apiClient.get('/orders');
       const assignments = res.data.assignments || [];
 
-      // Check if there is an active order already accepted or in progress
-      const activeAssigned = assignments.find((a: any) => {
-        const ordObj = typeof a.orderId === 'object' ? a.orderId : null;
-        const st = ordObj?.orderStatus || a.status || a.orderStatus || '';
-        return ['Accepted', 'accepted', 'ready_for_pickup', 'Ready', 'Packed', 'Reached Vendor', 'Pickup OTP Verified', 'Picked Up', 'picked_up', 'Out for Delivery', 'out_for_delivery', 'Reached Customer', 'Delivery OTP Verified', 'Shipped'].includes(st);
-      });
+      // Check if there is an active order matching URL or in progress
+      let activeAssigned = null;
+      if (urlId) {
+        activeAssigned = assignments.find((a: any) => {
+          const ordObj = typeof a.orderId === 'object' ? a.orderId : null;
+          const ordId = ordObj?._id || a.orderId || a._id;
+          return String(ordId) === String(urlId) || String(a._id) === String(urlId);
+        });
+      }
+
+      if (!activeAssigned && urlId) {
+        try {
+          const directRes = await apiClient.get(`/orders/${urlId}`);
+          if (directRes.data && directRes.data.order) {
+            const dOrd = directRes.data.order;
+            const dAssign = directRes.data.assignment;
+            activeAssigned = dAssign || {
+              _id: dOrd._id,
+              orderId: dOrd,
+              status: dOrd.orderStatus || 'Shipped',
+              vendorId: dOrd.sellerId || dOrd.vendorId,
+              customerId: dOrd.customerId
+            };
+          }
+        } catch (dErr) {}
+      }
+
+      if (!activeAssigned) {
+        activeAssigned = assignments.find((a: any) => {
+          const ordObj = typeof a.orderId === 'object' ? a.orderId : null;
+          const st = ordObj?.orderStatus || a.status || a.orderStatus || '';
+          return ['Accepted', 'accepted', 'ready_for_pickup', 'Ready', 'Packed', 'Reached Vendor', 'Pickup OTP Verified', 'Picked Up', 'picked_up', 'Out for Delivery', 'out_for_delivery', 'Reached Customer', 'Delivery OTP Verified', 'Shipped'].includes(st);
+        });
+      }
 
       if (activeAssigned) {
         const ordObj = typeof activeAssigned.orderId === 'object' ? activeAssigned.orderId : null;

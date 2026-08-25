@@ -21,16 +21,17 @@ export const DeliveryProgressStepper: React.FC<DeliveryProgressStepperProps> = (
   ];
 
   const getStepState = (index: number) => {
+    const norm = (currentStatus || '').toLowerCase();
     let activeIndex = 0;
     if (isFoodOrder) {
-      if (['Reached Vendor', 'Pickup OTP Verified', 'Picked Up', 'picked_up'].includes(currentStatus)) activeIndex = 1;
-      if (['Out for Delivery', 'out_for_delivery', 'Reached Customer', 'Delivery OTP Verified', 'Shipped'].includes(currentStatus)) activeIndex = 2;
-      if (['Delivered', 'Completed', 'delivered'].includes(currentStatus)) activeIndex = 3;
+      if (['reached vendor', 'pickup otp verified', 'picked up', 'picked_up'].includes(norm)) activeIndex = 1;
+      if (['out for delivery', 'out_for_delivery', 'reached customer', 'delivery otp verified'].includes(norm)) activeIndex = 2;
+      if (['delivered', 'completed'].includes(norm)) activeIndex = 3;
     } else {
-      if (['Reached Vendor', 'Pickup OTP Verified'].includes(currentStatus)) activeIndex = 1;
-      if (['Picked Up', 'picked_up'].includes(currentStatus)) activeIndex = 2;
-      if (['Reached Customer', 'Delivery OTP Verified', 'Out for Delivery', 'out_for_delivery'].includes(currentStatus)) activeIndex = 3;
-      if (['Delivered', 'Completed', 'delivered'].includes(currentStatus)) activeIndex = 4;
+      if (['reached vendor', 'pickup otp verified'].includes(norm)) activeIndex = 1;
+      if (['picked up', 'picked_up'].includes(norm)) activeIndex = 2;
+      if (['out for delivery', 'out_for_delivery', 'reached customer', 'delivery otp verified'].includes(norm)) activeIndex = 3;
+      if (['delivered', 'completed'].includes(norm)) activeIndex = 4;
     }
 
     if (index < activeIndex) return 'completed';

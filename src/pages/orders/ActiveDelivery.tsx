@@ -9,39 +9,45 @@ import { NavigationAction } from '../../components/orders/NavigationAction';
 import { PrimaryDeliveryAction } from '../../components/orders/PrimaryDeliveryAction';
 import { OtpInput } from '../../components/common/OtpInput';
 import { CodPaymentScannerModal } from '../../components/orders/CodPaymentScannerModal';
-import { ShieldCheck, CheckCircle2, QrCode, Banknote, Flame, UtensilsCrossed } from 'lucide-react';
+import { ShieldCheck, CheckCircle2, QrCode, Banknote, Flame, UtensilsCrossed, Loader2 } from 'lucide-react';
 import { useNavigate } from '../../app/simpleRouter';
 
 export const ActiveDeliveryPage: React.FC = () => {
   const { currentOrder } = useAppStore();
   const [loading, setLoading] = useState(false);
+  const [initialLoading, setInitialLoading] = useState(true);
   const [otpError, setOtpError] = useState('');
   const [showScannerModal, setShowScannerModal] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
     const fetchCurrent = async () => {
-      const offer = await orderService.getCurrentOffer();
-      if (offer) {
-        const storeCurrent = useAppStore.getState().currentOrder;
-        const wasCollected = Boolean(storeCurrent?.codCollected || offer.codCollected);
-        useAppStore.setState({
-          currentOrder: {
-            ...offer,
-            codCollected: wasCollected,
-            codPaymentMethod: wasCollected ? (storeCurrent?.codPaymentMethod || offer.codPaymentMethod || 'UPI') : offer.codPaymentMethod,
-            paymentStatus: wasCollected ? 'Paid' : (offer.paymentStatus || 'Pending'),
-            isPaid: wasCollected ? true : offer.isPaid
-          }
-        });
+      try {
+        const offer = await orderService.getCurrentOffer();
+        if (offer) {
+          const storeCurrent = useAppStore.getState().currentOrder;
+          const wasCollected = Boolean(storeCurrent?.codCollected || offer.codCollected);
+          useAppStore.setState({
+            currentOrder: {
+              ...offer,
+              codCollected: wasCollected,
+              codPaymentMethod: wasCollected ? (storeCurrent?.codPaymentMethod || offer.codPaymentMethod || 'UPI') : offer.codPaymentMethod,
+              paymentStatus: wasCollected ? 'Paid' : (offer.paymentStatus || 'Pending'),
+              isPaid: wasCollected ? true : offer.isPaid
+            }
+          });
+        }
+      } finally {
+        setInitialLoading(false);
       }
     };
+
     fetchCurrent();
     const interval = setInterval(fetchCurrent, 3500);
     return () => clearInterval(interval);
   }, []);
 
-  const pathParts = typeof window !== 'undefined' ? window.location.pathname.split('/') : [];
+  const pathParts = typeof window !== 'undefined' ? window.location.pathname.split('?')[0].split('/').filter(Boolean) : [];
   const urlOrderId = pathParts[pathParts.length - 1];
 
   const currentOrderObj: OrderOffer = currentOrder || {
@@ -49,8 +55,8 @@ export const ActiveDeliveryPage: React.FC = () => {
     orderNumber: `AB-${urlOrderId ? urlOrderId.slice(-8).toUpperCase() : 'LIVE-TASK'}`,
     vendor: {
       id: 'vendor_001',
-      name: 'Palodi Kitchen & Restaurant',
-      address: 'Palodi Road, Adilabad, Telangana - 504312',
+      name: 'Vendor Store',
+      address: 'Tamsi Mandal, Adilabad, Telangana - 504312',
       phone: '9177176969',
       pickupDistanceKm: 1.4,
       estimatedArrivalMins: 6,
@@ -58,21 +64,21 @@ export const ActiveDeliveryPage: React.FC = () => {
     },
     customer: {
       id: 'customer_001',
-      name: 'Akhilesh Reddy',
+      name: 'Customer',
       phone: '9707010797',
-      address: 'Railway Gate Lane, Hyderabad, Telangana, 504312',
+      address: 'Tamsi Mandal, Telangana - 504312',
       deliveryDistanceKm: 4.8,
       estimatedArrivalMins: 22,
       deliveryOtp: '3221'
     },
-    paymentType: 'COD' as const,
-    codAmount: 36.00,
-    category: 'Food & Dining',
+    paymentType: 'Prepaid' as const,
+    codAmount: 0,
+    category: 'Retail Package Delivery',
     packageCount: 1,
     estimatedTotalTimeMins: 25,
-    estimatedEarnings: 68.00,
+    estimatedEarnings: 35.00,
     expiresInSeconds: 0,
-    status: 'ready_for_pickup' as const
+    status: 'Accepted' as const
   };
 
   const status = currentOrderObj.status;
@@ -105,6 +111,26 @@ export const ActiveDeliveryPage: React.FC = () => {
   };
 
   // Handlers for status transitions
+  const handleAcceptOrder = async () => {
+    setLoading(true);
+    try {
+      await orderService.acceptOffer(currentOrderObj.orderId);
+      await updateCurrentOfferWithPreservedPayment('Accepted');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleRejectOrder = async () => {
+    setLoading(true);
+    try {
+      await orderService.rejectOffer('Rider rejected');
+      navigate('/app/dashboard');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleReachedVendor = async () => {
     setLoading(true);
     try {
@@ -194,17 +220,34 @@ export const ActiveDeliveryPage: React.FC = () => {
     ))
   );
 
-  const isFoodPickupPhase = isFoodOrder && !['Out for Delivery', 'out_for_delivery', 'Picked Up', 'picked_up', 'Reached Customer', 'Delivery OTP Verified', 'Delivered', 'Completed'].includes(status);
-  const isFoodDeliveryPhase = isFoodOrder && ['Out for Delivery', 'out_for_delivery', 'Picked Up', 'picked_up', 'Reached Customer', 'Delivery OTP Verified'].includes(status);
+  const normStatus = (status || '').toLowerCase();
 
-  const isRetailStage1 = !isFoodOrder && ['Accepted', 'accepted', 'Assigned', 'assigned', 'pending', 'Placed', 'placed'].includes(status);
-  const isRetailStage2 = !isFoodOrder && ['Reached Vendor', 'Pickup OTP Verified'].includes(status);
-  const isRetailStage3 = !isFoodOrder && ['Picked Up', 'picked_up', 'Out for Delivery', 'out_for_delivery', 'Shipped'].includes(status);
-  const isRetailStage4 = !isFoodOrder && ['Reached Customer', 'Delivery OTP Verified'].includes(status);
+  // Stage 0: Rider must accept/decline if unassigned or pending
+  const isAssignedPending = ['assigned', 'pending', 'unassigned'].includes(normStatus);
 
-  const codAmount = currentOrderObj.codAmount ?? 36.00;
+  // Stage 1: Heading to Store / Vendor Location (Store Pickup phase)
+  const isStage1Pickup = !isAssignedPending && ['accepted', 'shipped', 'ready_for_pickup', 'ready', 'packed', 'placed', 'confirmed'].includes(normStatus);
 
+  // Stage 2: At Store / Vendor (Merchant Pickup OTP Verification)
+  const isStage2AtVendor = ['reached vendor', 'pickup otp verified'].includes(normStatus);
+
+  // Stage 3: Picked Up / Heading to Customer Dropoff (Out for Delivery)
+  const isStage3EnRoute = ['picked up', 'picked_up', 'out for delivery', 'out_for_delivery'].includes(normStatus);
+
+  // Stage 4: Reached Customer Doorstep (Delivery OTP & COD Handshake)
+  const isStage4AtCustomer = ['reached customer', 'delivery otp verified'].includes(normStatus);
+
+  const codAmount = currentOrderObj.codAmount ?? 0;
   const vendorAddress = currentOrderObj.vendor?.address || 'Palodi Road, Adilabad, Telangana - 504312';
+
+  if (initialLoading && !currentOrder) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[50vh] space-y-3">
+        <Loader2 className="w-8 h-8 text-[#F5B800] animate-spin" />
+        <span className="text-xs font-bold text-neutral-500">Connecting live task route...</span>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 max-w-3xl mx-auto">
@@ -222,6 +265,41 @@ export const ActiveDeliveryPage: React.FC = () => {
       {/* Progress Stepper */}
       <DeliveryProgressStepper currentStatus={status} isFoodOrder={isFoodOrder} />
 
+      {/* STAGE 0: ACCEPT / DECLINE INCOMING ORDER OFFER */}
+      {isAssignedPending && (
+        <div className="bg-amber-500/10 border-2 border-[#F5B800] rounded-2xl p-5 sm:p-6 space-y-4 shadow-xs">
+          <div className="flex justify-between items-start">
+            <div>
+              <span className="text-xs font-black text-[#B45309] uppercase tracking-wider block">
+                Incoming Delivery Assignment
+              </span>
+              <h3 className="text-xl font-extrabold text-[#171717] mt-0.5">Accept Dispatch Run</h3>
+              <p className="text-xs text-[#6B7280] font-medium mt-1">Review task details and accept to begin vendor pickup route.</p>
+            </div>
+            <div className="text-right">
+              <span className="text-xs text-[#6B7280] font-semibold block">Payout</span>
+              <span className="text-lg font-black text-[#16A34A]">₹{currentOrderObj.estimatedEarnings || 35}</span>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <button
+              onClick={handleRejectOrder}
+              disabled={loading}
+              className="py-3 bg-neutral-100 hover:bg-neutral-200 text-neutral-800 font-bold text-xs rounded-xl cursor-pointer transition-all border border-neutral-300"
+            >
+              Decline Order ❌
+            </button>
+            <button
+              onClick={handleAcceptOrder}
+              disabled={loading}
+              className="py-3 bg-[#F5B800] hover:bg-[#e0a800] text-[#171717] font-black text-xs rounded-xl cursor-pointer transition-all shadow-md"
+            >
+              Accept Order Dispatch ✅
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Real-time Kitchen Status Banner (For Food & Dining Orders) */}
       {isFoodOrder && (
         <div className={`p-4 rounded-2xl border flex items-center justify-between shadow-xs ${['ready_for_pickup', 'Ready', 'Packed', 'out_for_delivery', 'Out for Delivery'].includes(status)
@@ -237,7 +315,7 @@ export const ActiveDeliveryPage: React.FC = () => {
             <div>
               <span className="text-[10px] font-extrabold uppercase tracking-wider block opacity-75">Restaurant Kitchen Live Status</span>
               <span className="text-xs font-black">
-                {['out_for_delivery', 'Out for Delivery', 'Picked Up'].includes(status)
+                {['out_for_delivery', 'Out for Delivery', 'Picked Up', 'picked_up'].includes(status)
                   ? '🚴 Food Handed Over — Rider is Heading to Customer'
                   : ['ready_for_pickup', 'Ready', 'Packed'].includes(status)
                     ? '🍲 Order Cooked & Ready for Pickup at Restaurant!'
@@ -251,56 +329,13 @@ export const ActiveDeliveryPage: React.FC = () => {
         </div>
       )}
 
-      {/* FOOD ORDER - PHASE 1: HEADING TO RESTAURANT & PICKUP OTP */}
-      {isFoodPickupPhase && (
-        <div className="bg-white border border-[#E5E7EB] rounded-2xl p-5 sm:p-6 space-y-5 shadow-xs">
-          <div className="flex justify-between items-start border-b border-[#E5E7EB] pb-4">
-            <div>
-              <span className="text-xs font-bold text-[#16A34A] uppercase tracking-wider block">
-                Restaurant Pickup Location
-              </span>
-              <h3 className="text-xl font-extrabold text-[#171717] mt-0.5">{currentOrderObj.vendor.name || 'Palodi Kitchen & Restaurant'}</h3>
-              <p className="text-xs text-[#6B7280] font-medium mt-1">{vendorAddress}</p>
-            </div>
-            <div className="text-right">
-              <span className="text-xs text-[#6B7280] font-semibold block">Pickup Distance</span>
-              <span className="text-base font-extrabold text-[#171717]">{currentOrderObj.vendor.pickupDistanceKm} km</span>
-              <span className="text-[11px] text-[#6B7280] block mt-0.5">Est. {currentOrderObj.vendor.estimatedArrivalMins} mins</span>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <CallAction phone={currentOrderObj.vendor.phone} label="Call Merchant" />
-            <NavigationAction address={vendorAddress} label="Open Pickup Route" />
-          </div>
-
-          <div className="p-4 bg-amber-50 border border-amber-200 rounded-2xl space-y-2 text-center">
-            <span className="text-xs font-bold text-amber-900 block">
-              Rider Verification Pickup OTP (Show to Restaurant Merchant):
-            </span>
-            <div className="text-2xl font-black text-amber-700 tracking-widest font-mono">
-              {currentOrderObj.vendor.pickupOtp || '3431'}
-            </div>
-            <p className="text-[11px] text-amber-800 font-medium">
-              Provide this code to restaurant staff so they verify your assignment and hand over the meal.
-            </p>
-          </div>
-
-          <PrimaryDeliveryAction
-            label="Picked Up Food & Start Delivery"
-            onClick={handleConfirmPickup}
-            loading={loading}
-          />
-        </div>
-      )}
-
-      {/* RETAIL STAGE 1: HEADING TO VENDOR STORE LOCATION */}
-      {isRetailStage1 && (
+      {/* STAGE 1: HEADING TO VENDOR STORE / RESTAURANT PICKUP LOCATION */}
+      {isStage1Pickup && (
         <div className="bg-white border border-[#E5E7EB] rounded-2xl p-5 sm:p-6 space-y-5 shadow-xs">
           <div className="flex justify-between items-start border-b border-[#E5E7EB] pb-4">
             <div>
               <span className="text-xs font-bold text-[#2563EB] uppercase tracking-wider block">
-                Vendor Store Pickup Location
+                {isFoodOrder ? 'Restaurant Pickup Location' : 'Vendor Store Pickup Location'}
               </span>
               <h3 className="text-xl font-extrabold text-[#171717] mt-0.5">{currentOrderObj.vendor.name}</h3>
               <p className="text-xs text-[#6B7280] font-medium mt-1">{vendorAddress}</p>
@@ -325,8 +360,8 @@ export const ActiveDeliveryPage: React.FC = () => {
         </div>
       )}
 
-      {/* RETAIL STAGE 2: REACHED VENDOR / PICKUP OTP VERIFICATION */}
-      {isRetailStage2 && (
+      {/* STAGE 2: REACHED VENDOR / PICKUP OTP VERIFICATION & HANDOFF */}
+      {isStage2AtVendor && (
         <div className="bg-white border border-[#E5E7EB] rounded-2xl p-5 sm:p-6 space-y-5 shadow-xs">
           <div className="border-b border-[#E5E7EB] pb-4">
             <span className="text-xs font-bold text-[#2563EB] uppercase tracking-wider block">
@@ -357,7 +392,7 @@ export const ActiveDeliveryPage: React.FC = () => {
 
           <div className="pt-2">
             <PrimaryDeliveryAction
-              label="Confirm Order Picked Up"
+              label="Confirm Order Picked Up & Start Delivery 🚚"
               onClick={handleConfirmPickup}
               disabled={status !== 'Pickup OTP Verified'}
               loading={loading}
@@ -366,8 +401,8 @@ export const ActiveDeliveryPage: React.FC = () => {
         </div>
       )}
 
-      {/* CUSTOMER DELIVERY PHASE (Food Delivery & Retail Stage 3 & Stage 4) */}
-      {(isFoodDeliveryPhase || isRetailStage3 || isRetailStage4) && (
+      {/* STAGE 3 & 4: CUSTOMER DELIVERY PHASES (Out for Delivery ➔ Reached Customer ➔ OTP) */}
+      {(isStage3EnRoute || isStage4AtCustomer) && (
         <div className="bg-white border border-[#E5E7EB] rounded-2xl p-5 sm:p-6 space-y-5 shadow-xs">
           <div className="flex justify-between items-start border-b border-[#E5E7EB] pb-4">
             <div>
@@ -424,7 +459,7 @@ export const ActiveDeliveryPage: React.FC = () => {
             </div>
           )}
 
-          {status === 'Reached Customer' ? (
+          {normStatus === 'reached customer' ? (
             <div className="space-y-4 text-center">
               <span className="text-xs font-bold text-[#171717] block">
                 Enter Customer Delivery OTP (OTP: {currentOrderObj.customer.deliveryOtp || '3221'})
@@ -435,10 +470,10 @@ export const ActiveDeliveryPage: React.FC = () => {
                 <span>Customer receives OTP on their registered mobile app</span>
               </div>
             </div>
-          ) : status === 'Delivery OTP Verified' ? (
+          ) : normStatus === 'delivery otp verified' ? (
             <div className="pt-2">
               <PrimaryDeliveryAction
-                label="Complete Delivery"
+                label="Complete Delivery & Handover Package ✅"
                 onClick={handleCompleteDelivery}
                 loading={loading}
                 variant="success"
@@ -477,4 +512,3 @@ export const ActiveDeliveryPage: React.FC = () => {
     </div>
   );
 };
-

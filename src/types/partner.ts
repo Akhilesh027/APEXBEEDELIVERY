@@ -57,6 +57,8 @@ export interface DeliveryPartner {
   status: AccountStatus;
   availability: PartnerAvailability;
   zone: string;
+  city?: string;
+  mandal?: string;
   shift?: string;
   shiftTime?: string;
   clockedInAt?: string;

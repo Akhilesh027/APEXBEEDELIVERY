@@ -52,9 +52,11 @@ function loadInitialState(): Partial<AppStoreState> {
     if (raw) {
       const parsed = JSON.parse(raw);
       parsed.activeOffer = null;
-      // Always clear order history from storage — must come from live API only
+      // Always clear order history and counters from storage — must come from live API only
       parsed.orderHistory = [];
       parsed.currentOrder = null;
+      parsed.completedCountToday = 0;
+      parsed.incentivesEarnedToday = 0;
       return parsed;
     }
   } catch (e) {
@@ -68,10 +70,8 @@ function saveState(state: Partial<AppStoreState>) {
   try {
     const toSave = {
       partner: state.partner,
-      // NOTE: orderHistory and currentOrder are intentionally NOT persisted
+      // NOTE: orderHistory, currentOrder, and counters are intentionally NOT persisted
       // They must always be fetched fresh from the API — prevents cross-partner data leakage
-      completedCountToday: state.completedCountToday,
-      incentivesEarnedToday: state.incentivesEarnedToday,
     };
     localStorage.setItem(STORAGE_KEY, JSON.stringify(toSave));
   } catch (e) {

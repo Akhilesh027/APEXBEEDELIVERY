@@ -69,7 +69,7 @@ export const AppShell: React.FC = () => {
                 <span>
                   {liveLocation.isGpsActive
                     ? `Live GPS Active (${liveLocation.latitude?.toFixed(4)}° N, ${liveLocation.longitude?.toFixed(4)}° E)`
-                    : 'GPS Tracking Active (LB Nagar Zone)'}
+                    : `GPS Tracking Active (${useAppStore.getState().partner?.zone || 'Tamsi Mandal'} Zone)`}
                 </span>
               </span>
             </div>

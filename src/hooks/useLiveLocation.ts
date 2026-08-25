@@ -22,7 +22,7 @@ export function useLiveLocation() {
     accuracy: null,
     heading: null,
     speed: null,
-    address: partner?.currentLocation?.address || 'LB Nagar, Hyderabad, 500074',
+    address: partner?.currentLocation?.address || `${partner?.zone || partner?.city || 'Tamsi Mandal'}, Adilabad`,
     isGpsActive: false,
     permissionState: 'prompt',
     errorMsg: null
@@ -43,7 +43,8 @@ export function useLiveLocation() {
 
     const handlePositionSuccess = (position: GeolocationPosition) => {
       const { latitude, longitude, accuracy, heading, speed } = position.coords;
-      const formattedAddress = `GPS (${latitude.toFixed(4)}° N, ${longitude.toFixed(4)}° E) • LB Nagar Zone`;
+      const zoneName = partner?.zone || partner?.city || 'Tamsi Mandal';
+      const formattedAddress = `GPS (${latitude.toFixed(4)}° N, ${longitude.toFixed(4)}° E) • ${zoneName} Zone`;
 
       setLocationState({
         latitude,
