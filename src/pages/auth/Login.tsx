@@ -32,7 +32,7 @@ export const LoginPage: React.FC = () => {
 
   const handleVerifyOtp = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (otp.length !== 4) return;
+    if (otp.length !== 6) return;
     setLoading(true);
     setError('');
     try {
@@ -44,7 +44,7 @@ export const LoginPage: React.FC = () => {
           navigate('/app/home');
         }
       } else {
-        setError(result.message || 'Invalid OTP code. Please use 1234 for testing.');
+        setError(result.message || 'Invalid OTP code. Please enter the valid code sent to your phone.');
       }
     } catch (err: any) {
       setError(err.message || 'Verification failed');
@@ -91,11 +91,11 @@ export const LoginPage: React.FC = () => {
       ) : (
         <form onSubmit={handleVerifyOtp} className="space-y-4">
           <div>
-            <label className="block text-[#171717] font-bold mb-1.5">Enter Verification Code (Mock: 1234)</label>
+            <label className="block text-[#171717] font-bold mb-1.5">Enter Verification Code</label>
             <input
               type="text"
-              maxLength={4}
-              placeholder="4-digit code"
+              maxLength={6}
+              placeholder="6-digit code"
               value={otp}
               onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))}
               className="w-full px-4 py-3 bg-[#F7F7F5] border border-[#E5E7EB] rounded-xl text-[#171717] font-mono font-extrabold text-center text-xl outline-none focus:border-[#F5B800]"
@@ -113,7 +113,7 @@ export const LoginPage: React.FC = () => {
             </button>
             <button
               type="submit"
-              disabled={loading || otp.length !== 4}
+              disabled={loading || otp.length !== 6}
               className="flex-1 py-3 bg-[#16A34A] hover:bg-emerald-700 disabled:bg-neutral-200 text-white font-extrabold rounded-xl shadow-xs"
             >
               {loading ? 'Verifying...' : 'Verify & Login'}

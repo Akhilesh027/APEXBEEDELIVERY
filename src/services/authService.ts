@@ -165,20 +165,7 @@ export const hybridAuthService: AuthService = {
       };
     }
 
-    if (otp === '1234') {
-      const mockToken = `jwt_token_${match.id || match.mobile}`;
-      localStorage.setItem('delivery_token', mockToken);
-      localStorage.setItem('delivery_partner', JSON.stringify(match));
-      useAppStore.setState({ partner: match });
-      return {
-        success: true,
-        token: mockToken,
-        partner: match,
-        status: match.status || 'active'
-      };
-    }
-
-    return { success: false, message: 'Invalid OTP code. Please enter valid verification code 1234.' };
+    return { success: false, message: 'Invalid OTP code. Please enter the valid verification code sent to your phone.' };
   },
 
   async register(payload: RegisterPayload): Promise<{ success: boolean; message?: string }> {
