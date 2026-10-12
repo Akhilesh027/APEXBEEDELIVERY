@@ -9,7 +9,16 @@ export const initialMockPartner: DeliveryPartner = {
   partnerType: 'Employee',
   status: 'offline',
   availability: 'Offline',
-  zone: 'Tamsi Mandal',
+  zone: 'Tamsi',
+  mandal: 'Tamsi',
+  district: 'Adilabad',
+  state: 'Telangana',
+  territory: {
+    state: 'Telangana',
+    district: 'Adilabad',
+    mandal: 'Tamsi',
+    pincode: '504312'
+  },
   shift: 'Morning Shift',
   shiftTime: '6:00 AM–2:00 PM',
   clockedInAt: '',

@@ -59,6 +59,14 @@ export interface DeliveryPartner {
   zone: string;
   city?: string;
   mandal?: string;
+  district?: string;
+  state?: string;
+  territory?: {
+    state?: string;
+    district?: string;
+    mandal?: string;
+    pincode?: string;
+  };
   shift?: string;
   shiftTime?: string;
   clockedInAt?: string;

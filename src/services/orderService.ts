@@ -82,17 +82,18 @@ function parseCustomerAddress(ordObj: any, assigned: any): string {
   const parts = [
     sa.addressLine1 || sa.addressText || sa.address || sa.houseNumber || sa.doorNo,
     sa.addressLine2 || sa.street || sa.landmark,
-    sa.city || sa.district || sa.mandal,
-    sa.state,
+    sa.mandal || sa.city || sa.district,
+    sa.district && sa.district !== sa.mandal ? sa.district : null,
+    sa.state || 'Telangana',
     sa.pincode ? String(sa.pincode) : null
   ].filter(Boolean);
   if (parts.length > 0) return parts.join(', ');
   if (assigned?.customerId?.address) return String(assigned.customerId.address);
-  return 'Palodi, Adilabad, Telangana - 504312';
+  return 'Tamsi, Adilabad, Telangana - 504312';
 }
 
 function parseVendorAddress(ordObj: any, assigned: any): string {
-  const DEFAULT_ADDRESS = 'Palodi Road, Adilabad, Telangana - 504312';
+  const DEFAULT_ADDRESS = 'Tamsi Road, Adilabad, Telangana - 504312';
   const v = assigned?.vendorId || ordObj?.sellerId || {};
   if (typeof v === 'string') return DEFAULT_ADDRESS;
   if (v.address) return String(v.address);
@@ -100,7 +101,7 @@ function parseVendorAddress(ordObj: any, assigned: any): string {
   const parts = [
     v.addressText || v.location,
     v.locality,
-    v.mandal || v.city || 'Palodi',
+    v.mandal || v.city || 'Tamsi',
     v.district || 'Adilabad',
     v.state || 'Telangana',
     v.pincode ? String(v.pincode) : '504312'

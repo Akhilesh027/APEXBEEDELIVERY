@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 
 interface OtpInputProps {
   length?: number;
@@ -16,6 +16,10 @@ export const OtpInput: React.FC<OtpInputProps> = ({
   const [digits, setDigits] = useState<string[]>(Array(length).fill(''));
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
 
+  useEffect(() => {
+    setDigits(Array(length).fill(''));
+  }, [length]);
+
   const handleChange = (index: number, value: string) => {
     if (disabled) return;
     const cleanValue = value.replace(/\D/g, '');
@@ -23,6 +27,23 @@ export const OtpInput: React.FC<OtpInputProps> = ({
       const updated = [...digits];
       updated[index] = '';
       setDigits(updated);
+      return;
+    }
+
+    // Handle pasting or multiple chars
+    if (cleanValue.length > 1) {
+      const updated = [...digits];
+      const sliceChars = cleanValue.slice(0, length - index);
+      for (let i = 0; i < sliceChars.length; i++) {
+        updated[index + i] = sliceChars[i];
+      }
+      setDigits(updated);
+      const nextFocus = Math.min(index + sliceChars.length, length - 1);
+      inputRefs.current[nextFocus]?.focus();
+      const full = updated.join('');
+      if (full.length === length && !updated.includes('')) {
+        onComplete(full);
+      }
       return;
     }
 

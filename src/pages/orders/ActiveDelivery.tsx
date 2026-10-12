@@ -376,7 +376,12 @@ export const ActiveDeliveryPage: React.FC = () => {
               <span className="text-xs font-bold text-[#171717] block">
                 Enter Merchant Pickup OTP (OTP: {currentOrderObj.vendor.pickupOtp || '3431'})
               </span>
-              <OtpInput onComplete={handleVerifyPickupOtp} error={otpError} disabled={loading} />
+              <OtpInput
+                length={String(currentOrderObj.vendor.pickupOtp || '3431').length}
+                onComplete={handleVerifyPickupOtp}
+                error={otpError}
+                disabled={loading}
+              />
               <div className="p-3 bg-blue-50 border border-blue-200 rounded-xl text-xs text-[#2563EB] font-semibold inline-flex items-center space-x-1.5">
                 <ShieldCheck className="h-4 w-4 shrink-0" />
                 <span>Ask store merchant for 4-digit verification code</span>
@@ -464,7 +469,12 @@ export const ActiveDeliveryPage: React.FC = () => {
               <span className="text-xs font-bold text-[#171717] block">
                 Enter Customer Delivery OTP (OTP: {currentOrderObj.customer.deliveryOtp || '3221'})
               </span>
-              <OtpInput onComplete={handleVerifyDeliveryOtp} error={otpError} disabled={loading} />
+              <OtpInput
+                length={String(currentOrderObj.customer.deliveryOtp || '3221').length}
+                onComplete={handleVerifyDeliveryOtp}
+                error={otpError}
+                disabled={loading}
+              />
               <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-xs text-[#16A34A] font-semibold inline-flex items-center space-x-1.5">
                 <ShieldCheck className="h-4 w-4 shrink-0" />
                 <span>Customer receives OTP on their registered mobile app</span>
